@@ -1,11 +1,9 @@
 #!/usr/bin/env bash
-# Official profile: profiles/qwen27b/fast/fp8/int8kv-256K-mtp3-text-only.env
 set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 MODEL_HOST_DIR="${1:-${MODEL_HOST_DIR:-}}"
 ROUTE_ID="qwen27b-fp8-int8kv-256k-mtp3-fast"
-PROFILE_REF="profiles/qwen27b/fast/fp8/int8kv-256K-mtp3-text-only.env"
 SERVED_NAME="${SERVED_NAME:-qwen27b-fp8-int8kv-256K-mtp3-text-only-cu128}"
 MODE="${MODE:-fast}"
 MODEL_FAMILY="qwen"

@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
-# Common Docker runner for Qwen3.6-27B vLLM-2080Ti profiles.
-# Individual route scripts set the profile variables, then source this file.
+# Common Docker runner for direct Qwen3.6-27B vLLM API routes.
+# Individual route scripts set vLLM parameters directly, then source this file.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 
 : "${ROUTE_ID:?ROUTE_ID is required}"
-: "${PROFILE_REF:?PROFILE_REF is required}"
 : "${SERVED_NAME:?SERVED_NAME is required}"
 : "${MODE:?MODE is required}"
 : "${MODEL_FAMILY:=qwen}"
@@ -334,7 +333,6 @@ build_docker_args() {
 print_summary() {
   cat <<SUMMARY_EOF
 Route:        $ROUTE_ID
-Profile:      $PROFILE_REF
 Mode:         $MODE
 Model path:   $MODEL_HOST_DIR -> $MODEL_CONTAINER_DIR
 Image:        $IMAGE

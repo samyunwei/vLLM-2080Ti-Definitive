@@ -23,18 +23,28 @@ fi
 
 docker buildx inspect "$BUILDER" --bootstrap | tee "$SCRIPT_DIR/buildx-inspect.log"
 
-# Copy Dockerfile.local into a temporary context together with your source.
+# Copy source into a temporary context without git-ignored local artifacts.
 TMP_CONTEXT="$(mktemp -d)"
 trap 'rm -rf "$TMP_CONTEXT"' EXIT
-rsync -a --delete \
-  --exclude .git \
-  --exclude .venv \
-  --exclude build \
-  --exclude dist \
-  --exclude build-logs \
-  --exclude run-logs \
-  --exclude .cache \
-  "$REPO_DIR/" "$TMP_CONTEXT/"
+if git -C "$REPO_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  (
+    cd "$REPO_DIR"
+    git ls-files -z --cached --modified --others --exclude-standard \
+      | sort -zu \
+      | rsync -a --from0 --files-from=- --ignore-missing-args ./ "$TMP_CONTEXT/"
+  )
+else
+  rsync -a --delete \
+    --filter=':- .gitignore' \
+    --exclude .git \
+    --exclude .venv \
+    --exclude build \
+    --exclude dist \
+    --exclude build-logs \
+    --exclude run-logs \
+    --exclude .cache \
+    "$REPO_DIR/" "$TMP_CONTEXT/"
+fi
 if [[ "$PATCH_ONLY" == "1" ]]; then
   {
     printf '%s\n' '# syntax=docker/dockerfile:1'

@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
-# Official profile: profiles/qwen27b/safe/fp8/fp16kv-128K-mtp3-text-only.env
 # Note: latest profiles do NOT include FP8 + FP16 KV + 256K + MTP3.
 set -euo pipefail
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 
 MODEL_HOST_DIR="${1:-${MODEL_HOST_DIR:-}}"
 ROUTE_ID="qwen27b-fp8-fp16kv-90k-mtp3-safe"
-PROFILE_REF="profiles/qwen27b/safe/fp8/fp16kv-90K-mtp3-text-only.env"
 SERVED_NAME="${SERVED_NAME:-qwen27b-fp8-fp16kv-90K-mtp3-text-only-cu128}"
 MODE="${MODE:-safe}"
 MODEL_FAMILY="qwen"
