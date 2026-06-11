@@ -6,6 +6,7 @@ BUILDER="${BUILDER:-gpubuilder}"
 VLLM_REF="${VLLM_REF:-sm75-tp2-cu128-stable}"
 PYTHON_VERSION="${PYTHON_VERSION:-3.12}"
 MAX_JOBS="${MAX_JOBS:-8}"
+TORCH_BACKEND="${TORCH_BACKEND:-cu128}"
 
 if ! docker buildx inspect "$BUILDER" >/dev/null 2>&1; then
   docker buildx create \
@@ -24,6 +25,7 @@ docker buildx build \
   --build-arg VLLM_REF="$VLLM_REF" \
   --build-arg PYTHON_VERSION="$PYTHON_VERSION" \
   --build-arg MAX_JOBS="$MAX_JOBS" \
+  --build-arg TORCH_BACKEND="$TORCH_BACKEND" \
   -f "$SCRIPT_DIR/Dockerfile.git" \
   -t "$IMAGE" \
   "$SCRIPT_DIR" 2>&1 | tee "$SCRIPT_DIR/build.log"

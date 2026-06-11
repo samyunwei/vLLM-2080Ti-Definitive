@@ -331,23 +331,138 @@ build_docker_args() {
 }
 
 print_summary() {
+  local effective_speculative_config
+  local effective_compilation_config
+  local effective_additional_config
+  local docker_gpus_display
+  local capture
+
+  capture=$((MTP_K + 1))
+  if [[ -n "$SPECULATIVE_CONFIG" ]]; then
+    effective_speculative_config="$SPECULATIVE_CONFIG"
+  elif (( MTP_K > 0 )); then
+    effective_speculative_config="{\"method\":\"mtp\",\"num_speculative_tokens\":${MTP_K}}"
+  else
+    effective_speculative_config="off"
+  fi
+
+  if [[ -n "$COMPILATION_CONFIG_JSON" ]]; then
+    effective_compilation_config="$COMPILATION_CONFIG_JSON"
+  elif [[ -n "$SPECULATIVE_CONFIG" || "$MTP_K" -gt 0 ]]; then
+    effective_compilation_config="{\"cudagraph_capture_sizes\":[${capture}],\"max_cudagraph_capture_size\":${capture}}"
+  else
+    effective_compilation_config='{"cudagraph_capture_sizes":[1],"max_cudagraph_capture_size":1}'
+  fi
+
+  if [[ -n "$ADDITIONAL_CONFIG_JSON" ]]; then
+    effective_additional_config="$ADDITIONAL_CONFIG_JSON"
+  elif [[ "$MODEL_FAMILY" == qwen* ]]; then
+    effective_additional_config='{"gdn_prefill_backend":"flashqla_legacy"}'
+  else
+    effective_additional_config="not passed"
+  fi
+
+  if [[ -n "$DOCKER_GPUS" ]]; then
+    docker_gpus_display="$DOCKER_GPUS"
+  elif [[ "$GPU_DEVICES" == "all" ]]; then
+    docker_gpus_display="all"
+  else
+    docker_gpus_display="\"device=${GPU_DEVICES}\""
+  fi
+
   cat <<SUMMARY_EOF
-Route:        $ROUTE_ID
-Mode:         $MODE
-Model path:   $MODEL_HOST_DIR -> $MODEL_CONTAINER_DIR
-Image:        $IMAGE
-Container:    $NAME
-Port:         ${PUBLISH_ADDR}:${PORT}:${PORT}
-GPUs / TP:    $GPU_DEVICES / $TP_SIZE
-Container CUDA_VISIBLE_DEVICES: $CONTAINER_CUDA_VISIBLE_DEVICES
-Served name:  $SERVED_NAME
-Max len:      $MAX_MODEL_LEN
-KV dtype:     ${KV_CACHE_DTYPE:-fp16/default}
-Quantization: ${QUANTIZATION:-auto/not passed}
-MTP_K:        $MTP_K
-Reasoning:    ${REASONING_PARSER:-off}${REASONING_BUDGET:+, budget=$REASONING_BUDGET}
-Tool call:    auto=${ENABLE_AUTO_TOOL_CHOICE}, parser=${TOOL_CALL_PARSER:-unset}
-Chat template:${CHAT_TEMPLATE_HOST_FILE:- model default / not mounted}
+Route
+  ROUTE_ID:                         $ROUTE_ID
+  MODE:                             $MODE
+  MODEL_FAMILY / MODEL_VARIANT:     $MODEL_FAMILY / $MODEL_VARIANT
+
+Docker
+  IMAGE:                            $IMAGE
+  NAME:                             $NAME
+  DRY_RUN:                          $DRY_RUN
+  PUBLISH_ADDR / PORT:              $PUBLISH_ADDR / $PORT
+  API_HOST_IN_CONTAINER:            $API_HOST_IN_CONTAINER
+  SHM_SIZE:                         $SHM_SIZE
+  DOCKER_GPUS:                      $docker_gpus_display
+  GPU_DEVICES:                      $GPU_DEVICES
+  TP_SIZE:                          $TP_SIZE
+  CONTAINER_CUDA_VISIBLE_DEVICES:   $CONTAINER_CUDA_VISIBLE_DEVICES
+  NVIDIA_VISIBLE_DEVICES:           $GPU_DEVICES
+  CUDA_DEVICE_ORDER:                PCI_BUS_ID
+  MODEL_HOST_DIR:                   $MODEL_HOST_DIR
+  MODEL_CONTAINER_DIR:              $MODEL_CONTAINER_DIR
+  CACHE_HOST_DIR:                   $CACHE_HOST_DIR
+  CONTAINER_CACHE_DIR:              $CONTAINER_CACHE_DIR
+  PYTHON_BIN:                       ${PYTHON_BIN:-auto}
+
+Container CUDA / build env
+  CUDA_HOME:                        ${CUDA_HOME:-/usr/local/cuda-12.8}
+  CUDA_PATH:                        ${CUDA_PATH:-/usr/local/cuda-12.8}
+  CUDACXX:                          ${CUDACXX:-/usr/local/cuda-12.8/bin/nvcc}
+  TORCH_CUDA_ARCH_LIST:             ${TORCH_CUDA_ARCH_LIST:-7.5}
+  FLASHINFER_ENABLE_AOT:            ${FLASHINFER_ENABLE_AOT:-1}
+  PYTHONUNBUFFERED:                 1
+  STABLE_ROOT:                      ${STABLE_ROOT:-/workspace}
+  PYTHONPATH:                       ${CONTAINER_PYTHONPATH:-/workspace:/opt/FlashQLA-SM70-SM75}
+  TORCHINDUCTOR_CACHE_DIR:          ${CONTAINER_CACHE_DIR}/torchinductor-cache
+  TRITON_CACHE_DIR:                 ${CONTAINER_CACHE_DIR}/triton-cache
+
+vLLM core
+  --host:                           $API_HOST_IN_CONTAINER
+  --port:                           $PORT
+  --model:                          $MODEL_CONTAINER_DIR
+  --served-model-name:              $SERVED_NAME
+  --dtype:                          half
+  --tensor-parallel-size:           $TP_SIZE
+  --generation-config:              vllm
+  --gpu-memory-utilization:         $GPU_UTIL
+  --max-model-len:                  $MAX_MODEL_LEN
+  --max-num-seqs:                   $MAX_NUM_SEQS
+  --max-num-batched-tokens:         $MAX_BATCHED_TOKENS
+  --enable-chunked-prefill:         1
+  --quantization:                   ${QUANTIZATION:-not passed}
+  --kv-cache-dtype:                 ${KV_CACHE_DTYPE:-fp16/default}
+  --attention-backend:              ${ATTENTION_BACKEND:-not passed}
+
+vLLM feature flags
+  ENFORCE_EAGER:                    $ENFORCE_EAGER
+  NO_ASYNC_SCHEDULING:              $NO_ASYNC_SCHEDULING
+  DISABLE_HYBRID_KV_CACHE_MANAGER:  $DISABLE_HYBRID_KV_CACHE_MANAGER
+  DISABLE_PREFIX_CACHING:           $DISABLE_PREFIX_CACHING
+  LANGUAGE_MODEL_ONLY:              $LANGUAGE_MODEL_ONLY
+  SKIP_MM_PROFILING:                $SKIP_MM_PROFILING
+  DISABLE_CUSTOM_ALL_REDUCE:        $DISABLE_CUSTOM_ALL_REDUCE
+  DISABLE_LOG_STATS:                $DISABLE_LOG_STATS
+
+Spec decode / graph
+  MTP_K:                            $MTP_K
+  VLLM_QWOPUS_MTP_BF16_DRAFT:       ${VLLM_QWOPUS_MTP_BF16_DRAFT:-$([[ "$MTP_K" -gt 0 ]] && echo 1 || echo not set)}
+  SPECULATIVE_CONFIG effective:     $effective_speculative_config
+  COMPILATION_CONFIG effective:     $effective_compilation_config
+  VLLM_SM75_SPEC_SYNC_MODE:         $VLLM_SM75_SPEC_SYNC_MODE
+  VLLM_ALLOW_MAMBA_SPEC_FULL_CUDAGRAPH: $VLLM_ALLOW_MAMBA_SPEC_FULL_CUDAGRAPH
+
+Reasoning / tools / templates
+  REASONING_PARSER:                 ${REASONING_PARSER:-off}
+  REASONING_BUDGET:                 ${REASONING_BUDGET:-not set}
+  DEFAULT_CHAT_TEMPLATE_KWARGS:     ${DEFAULT_CHAT_TEMPLATE_KWARGS:-not passed}
+  ENABLE_AUTO_TOOL_CHOICE:          $ENABLE_AUTO_TOOL_CHOICE
+  TOOL_CALL_PARSER:                 ${TOOL_CALL_PARSER:-not passed}
+  TOOL_PARSER_PLUGIN:               ${TOOL_PARSER_PLUGIN:-not passed}
+  AUTO_CHAT_TEMPLATE:               $AUTO_CHAT_TEMPLATE
+  CHAT_TEMPLATE_HOST_FILE:          ${CHAT_TEMPLATE_HOST_FILE:-model default / not mounted}
+  CHAT_TEMPLATE_CONTAINER_FILE:     $CHAT_TEMPLATE_CONTAINER_FILE
+
+JSON overrides
+  ADDITIONAL_CONFIG effective:      $effective_additional_config
+  HF_OVERRIDES_JSON:                ${HF_OVERRIDES_JSON:-not passed}
+  MM_LIMIT_JSON:                    ${MM_LIMIT_JSON:-not passed}
+
+INT8 KV env
+  VLLM_INT8KV_FA_PREFILL:           ${VLLM_INT8KV_FA_PREFILL:-$([[ "$KV_CACHE_DTYPE" == "int8_per_token_head" ]] && echo 1 || echo not set)}
+  VLLM_INT8KV_FA_CONTINUATION_DEQUANT: ${VLLM_INT8KV_FA_CONTINUATION_DEQUANT:-$([[ "$KV_CACHE_DTYPE" == "int8_per_token_head" ]] && echo 1 || echo not set)}
+  VLLM_INT8KV_FA_CASCADE_DEQUANT:   ${VLLM_INT8KV_FA_CASCADE_DEQUANT:-$([[ "$KV_CACHE_DTYPE" == "int8_per_token_head" ]] && echo 1 || echo not set)}
+  VLLM_INT8KV_FA_CASCADE_TILE_TOKENS: ${VLLM_INT8KV_FA_CASCADE_TILE_TOKENS:-$([[ "$KV_CACHE_DTYPE" == "int8_per_token_head" ]] && echo 65536 || echo not set)}
 SUMMARY_EOF
 }
 

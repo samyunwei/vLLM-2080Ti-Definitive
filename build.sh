@@ -248,6 +248,8 @@ export PATH="$ROOT/.venv/bin:$CUDA_HOME/bin:$PATH"
 export TORCH_CUDA_ARCH_LIST=${TORCH_CUDA_ARCH_LIST:-7.5}
 export CMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE:-Release}
 export FLASHINFER_ENABLE_AOT=${FLASHINFER_ENABLE_AOT:-1}
+TORCH_BACKEND=${TORCH_BACKEND:-auto}
+export TORCH_BACKEND
 
 cat <<EOF | tee -a "$LOG"
 
@@ -257,6 +259,7 @@ Build settings:
   CPU_THREADS=$CPU_THREADS
   MAX_JOBS=$MAX_JOBS ($MAX_JOBS_SOURCE)
   CMAKE_BUILD_TYPE=$CMAKE_BUILD_TYPE
+  TORCH_BACKEND=$TORCH_BACKEND
   VENV=$ROOT/.venv
 EOF
 
@@ -274,11 +277,11 @@ fi
 run_with_progress "Upgrade build frontend" uv pip install --python .venv/bin/python -U pip setuptools wheel
 
 if [[ -f requirements/build/cuda.txt ]]; then
-  run_with_progress "Install CUDA build requirements" uv pip install --python .venv/bin/python -r requirements/build/cuda.txt --torch-backend=auto
+  run_with_progress "Install CUDA build requirements" uv pip install --python .venv/bin/python -r requirements/build/cuda.txt --torch-backend="$TORCH_BACKEND"
 fi
 
 if [[ -f requirements/cuda.txt ]]; then
-  run_with_progress "Install CUDA runtime requirements" uv pip install --python .venv/bin/python -r requirements/cuda.txt --torch-backend=auto
+  run_with_progress "Install CUDA runtime requirements" uv pip install --python .venv/bin/python -r requirements/cuda.txt --torch-backend="$TORCH_BACKEND"
 fi
 
 run_with_progress "Build and install vLLM 2080 Ti Definitive runtime" \

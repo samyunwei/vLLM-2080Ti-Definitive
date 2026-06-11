@@ -6,6 +6,7 @@ IMAGE="${IMAGE:-vllm-2080ti:cu128.2-py312-dev-local}"
 BUILDER="${BUILDER:-gpubuilder}"
 PYTHON_VERSION="${PYTHON_VERSION:-3.12}"
 MAX_JOBS="${MAX_JOBS:-8}"
+TORCH_BACKEND="${TORCH_BACKEND:-cu128}"
 PATCH_ONLY="${PATCH_ONLY:-0}"
 BASE_IMAGE="${BASE_IMAGE:-$IMAGE}"
 
@@ -71,6 +72,7 @@ else
     --load \
     --build-arg PYTHON_VERSION="$PYTHON_VERSION" \
     --build-arg MAX_JOBS="$MAX_JOBS" \
+    --build-arg TORCH_BACKEND="$TORCH_BACKEND" \
     -t "$IMAGE" \
     "$TMP_CONTEXT" 2>&1 | tee "$SCRIPT_DIR/build-local.log"
 fi

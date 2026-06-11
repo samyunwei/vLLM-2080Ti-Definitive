@@ -5,6 +5,7 @@ ARG VLLM_REPO=https://github.com/weicj/vLLM-2080Ti-Definitive.git
 ARG VLLM_REF=sm75-tp2-cu128-stable
 ARG PYTHON_VERSION=3.12
 ARG MAX_JOBS=8
+ARG TORCH_BACKEND=cu128
 
 ENV DEBIAN_FRONTEND=noninteractive \
     CUDA_HOME=/usr/local/cuda \
@@ -44,7 +45,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=cache,target=/root/.cache/pip \
     --mount=type=cache,target=/root/.cache/ccache \
     --device=nvidia.com/gpu=all \
-    ASSUME_YES=1 PYTHON_VERSION="${PYTHON_VERSION}" MAX_JOBS="${MAX_JOBS}" ./build.sh
+    ASSUME_YES=1 PYTHON_VERSION="${PYTHON_VERSION}" MAX_JOBS="${MAX_JOBS}" TORCH_BACKEND="${TORCH_BACKEND}" ./build.sh
 
 COPY docker-entrypoint.sh /usr/local/bin/vllm-2080ti-entrypoint
 RUN chmod +x /usr/local/bin/vllm-2080ti-entrypoint \
