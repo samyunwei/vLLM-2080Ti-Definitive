@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Official profile: profiles/qwen27b/safe/int4/fp16kv-256K-mtp3-text-only.env
+set -euo pipefail
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+
+MODEL_HOST_DIR="${1:-${MODEL_HOST_DIR:-}}"
+ROUTE_ID="qwen27b-int4-fp16kv-256k-mtp3-safe"
+PROFILE_REF="profiles/qwen27b/safe/int4/fp16kv-256K-mtp3-text-only.env"
+SERVED_NAME="${SERVED_NAME:-qwen27b-int4-fp16kv-256K-mtp3-text-only-cu128}"
+MODE="${MODE:-safe}"
+MODEL_FAMILY="qwen"
+MODEL_VARIANT="int4"
+MAX_MODEL_LEN="${MAX_MODEL_LEN:-259200}"
+GPU_UTIL="${GPU_UTIL:-0.95}"
+MAX_BATCHED_TOKENS="${MAX_BATCHED_TOKENS:-2048}"
+MAX_NUM_SEQS="${MAX_NUM_SEQS:-1}"
+MTP_K="${MTP_K:-3}"
+LANGUAGE_MODEL_ONLY="${LANGUAGE_MODEL_ONLY:-1}"
+SKIP_MM_PROFILING="${SKIP_MM_PROFILING:-1}"
+DISABLE_CUSTOM_ALL_REDUCE="${DISABLE_CUSTOM_ALL_REDUCE:-0}"
+VLLM_QWOPUS_MTP_BF16_DRAFT="${VLLM_QWOPUS_MTP_BF16_DRAFT:-1}"
+
+# AWQ/GPTQ/Quark auto-guessed from MODEL_HOST_DIR unless QUANTIZATION=... is set.
+source "$SCRIPT_DIR/run-api-qwen27b-common.sh"
